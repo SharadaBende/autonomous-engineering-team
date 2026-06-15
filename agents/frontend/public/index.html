@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- 
+  The main HTML file for the frontend of the BlogMaster application.
+  This file serves as the entry point for the React application.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlogMaster</title>
+  <!-- 
+    Load the favicon for the application.
+    The favicon is a small icon that appears in the browser's address bar and bookmarks.
+  -->
+  <link rel="icon" type="image/png" href="%PUBLIC_URL%/favicon.png" />
+  <!-- 
+    Load the CSS styles for the application.
+    The CSS styles are used to control the layout and appearance of the application.
+  -->
+  <link rel="stylesheet" href="%PUBLIC_URL%/styles.css" />
+</head>
+<body>
+  <!-- 
+    The root element of the React application.
+    This element is where the React application will be rendered.
+  -->
+  <div id="root"></div>
+  <!-- 
+    Load the JavaScript code for the application.
+    The JavaScript code is used to create the interactive elements of the application.
+  -->
+  <script src="%PUBLIC_URL%/index.js"></script>
+  <!-- 
+    Error handling: If there is an error loading the JavaScript code, display an error message.
+  -->
+  <script>
+    window.addEventListener("error", function(event) {
+      console.error("Error loading JavaScript code:", event);
+      document.getElementById("root").innerHTML = "Error loading application. Please try again later.";
+    });
+  </script>
+</body>
+</html>
