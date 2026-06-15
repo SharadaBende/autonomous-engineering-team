@@ -1,0 +1,43 @@
+# Virtual Environment
+venv/
+env/
+
+# Environment Variables (NEVER push this to GitHub)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Node modules (for frontend)
+node_modules/
+npm-debug.log
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
