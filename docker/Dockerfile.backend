@@ -1,0 +1,25 @@
+# Dockerfile for TodoApp backend
+# Stage 1: Build the application
+FROM node:16 as build-stage
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+# Stage 2: Create the production image
+FROM node:16
+WORKDIR /app
+COPY --from=build-stage /app/node_modules ./node_modules
+COPY --from=build-stage /app/package*.json ./
+COPY --from=build-stage /app/build ./build
+COPY --from=build-stage /app/src ./src
+EXPOSE 3000
+ENV NODE_ENV production
+ENV DB_HOST ${DB_HOST}
+ENV DB_USER ${DB_USER}
+ENV DB_PASSWORD ${DB_PASSWORD}
+ENV DB_NAME ${DB_NAME}
+ENV REDIS_HOST ${REDIS_HOST}
+ENV REDIS_PORT ${REDIS_PORT}
+CMD ["node", "src/server.js"]

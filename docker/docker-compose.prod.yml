@@ -1,0 +1,73 @@
+version: '3'
+
+services:
+  # Node.js with Express backend service
+  backend:
+    build: ../backend
+    environment:
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - NODE_ENV=production
+    ports:
+      - "8080:8080"
+    depends_on:
+      - database
+      - redis
+    restart: unless-stopped
+
+  # React frontend service
+  frontend:
+    build: ../frontend
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # MySQL database service
+  database:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DATABASE_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DATABASE_NAME}
+      - MYSQL_USER=${DATABASE_USER}
+      - MYSQL_PASSWORD=${DATABASE_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    restart: unless-stopped
+
+  # Redis cache service
+  redis:
+    image: redis:alpine
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  redis-data:
+
+networks:
+  default:
+    driver: bridge
+
+# To use this configuration, create a .env file in the root directory with the following variables:
+# DATABASE_HOST
+# DATABASE_PORT
+# DATABASE_USER
+# DATABASE_PASSWORD
+# DATABASE_NAME
+# DATABASE_ROOT_PASSWORD
+# REDIS_HOST
+# REDIS_PORT
+# REDIS_PASSWORD
