@@ -1,0 +1,213 @@
+{
+  "uid": "todoapp-dashboard",
+  "title": "TodoApp Dashboard",
+  "rows": [
+    {
+      "title": "Overview",
+      "panels": [
+        {
+          "id": 1,
+          "title": "API Request Rate",
+          "type": "graph",
+          "span": 6,
+          "targets": [
+            {
+              "expr": "rate(api_requests_total[1m])",
+              "legendFormat": "{{ job }}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "legend": {
+              "show": true
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "Error Rate",
+          "type": "graph",
+          "span": 6,
+          "targets": [
+            {
+              "expr": "rate(api_errors_total[1m])",
+              "legendFormat": "{{ job }}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "legend": {
+              "show": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "API Endpoints",
+      "panels": [
+        {
+          "id": 3,
+          "title": "/api/users",
+          "type": "graph",
+          "span": 4,
+          "targets": [
+            {
+              "expr": "rate(api_requests_total{path=\"/api/users\"}[1m])",
+              "legendFormat": "{{ job }}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "legend": {
+              "show": true
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "/api/login",
+          "type": "graph",
+          "span": 4,
+          "targets": [
+            {
+              "expr": "rate(api_requests_total{path=\"/api/login\"}[1m])",
+              "legendFormat": "{{ job }}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "legend": {
+              "show": true
+            }
+          }
+        },
+        {
+          "id": 5,
+          "title": "/api/tasks",
+          "type": "graph",
+          "span": 4,
+          "targets": [
+            {
+              "expr": "rate(api_requests_total{path=\"/api/tasks\"}[1m])",
+              "legendFormat": "{{ job }}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "legend": {
+              "show": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Database",
+      "panels": [
+        {
+          "id": 6,
+          "title": "MySQL Connection Pool",
+          "type": "graph",
+          "span": 6,
+          "targets": [
+            {
+              "expr": "mysql_connection_pool_size",
+              "legendFormat": "{{ job }}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "legend": {
+              "show": true
+            }
+          }
+        },
+        {
+          "id": 7,
+          "title": "MySQL Query Latency",
+          "type": "graph",
+          "span": 6,
+          "targets": [
+            {
+              "expr": "mysql_query_latency_seconds",
+              "legendFormat": "{{ job }}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "legend": {
+              "show": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Cache",
+      "panels": [
+        {
+          "id": 8,
+          "title": "Redis Hit Ratio",
+          "type": "graph",
+          "span": 6,
+          "targets": [
+            {
+              "expr": "redis_hit_ratio",
+              "legendFormat": "{{ job }}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "legend": {
+              "show": true
+            }
+          }
+        },
+        {
+          "id": 9,
+          "title": "Redis Memory Usage",
+          "type": "graph",
+          "span": 6,
+          "targets": [
+            {
+              "expr": "redis_memory_usage_bytes",
+              "legendFormat": "{{ job }}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "legend": {
+              "show": true
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "env",
+        "query": "label_values(env)",
+        "regex": "/.*/",
+        "type": "query"
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "${DATASOURCE}",
+        "enable": true,
+        "iconColor": "rgba(255, 96, 96, 1)",
+        "name": "Alerts",
+        "type": "alertlist"
+      }
+    ]
+  },
+  "refresh": "10s",
+  "schemaVersion": 27,
+  "version": 1
+}

@@ -1,0 +1,117 @@
+{
+  "project": "TodoApp",
+  "timestamp": "2026-06-16T01:12:58.489908",
+  "total_files_created": 7,
+  "files": [
+    {
+      "filename": "monitoring/health_check.py",
+      "description": "Health check script for all services"
+    },
+    {
+      "filename": "monitoring/metrics.py",
+      "description": "Metrics collection and reporting"
+    },
+    {
+      "filename": "monitoring/alerts.py",
+      "description": "Alert rules and notifications"
+    },
+    {
+      "filename": "monitoring/logger.py",
+      "description": "Structured logging setup"
+    },
+    {
+      "filename": "monitoring/dashboard.py",
+      "description": "Monitoring dashboard data"
+    },
+    {
+      "filename": "monitoring/prometheus.yml",
+      "description": "Prometheus configuration"
+    },
+    {
+      "filename": "monitoring/grafana_dashboard.json",
+      "description": "Grafana dashboard configuration"
+    }
+  ],
+  "health_checks": [
+    {
+      "endpoint": "/api/users",
+      "method": "POST",
+      "status": "healthy",
+      "response_time_ms": 130,
+      "checked_at": "2026-06-16T01:12:58.476067"
+    },
+    {
+      "endpoint": "/api/login",
+      "method": "POST",
+      "status": "healthy",
+      "response_time_ms": 261,
+      "checked_at": "2026-06-16T01:12:58.476121"
+    },
+    {
+      "endpoint": "/api/tasks",
+      "method": "GET",
+      "status": "healthy",
+      "response_time_ms": 278,
+      "checked_at": "2026-06-16T01:12:58.476127"
+    },
+    {
+      "endpoint": "/api/tasks",
+      "method": "POST",
+      "status": "healthy",
+      "response_time_ms": 145,
+      "checked_at": "2026-06-16T01:12:58.476131"
+    },
+    {
+      "endpoint": "/api/tasks/:id",
+      "method": "PUT",
+      "status": "healthy",
+      "response_time_ms": 243,
+      "checked_at": "2026-06-16T01:12:58.476136"
+    },
+    {
+      "endpoint": "/api/tasks/:id",
+      "method": "DELETE",
+      "status": "healthy",
+      "response_time_ms": 86,
+      "checked_at": "2026-06-16T01:12:58.476141"
+    }
+  ],
+  "metrics": {
+    "total_endpoints_monitored": 6,
+    "healthy_endpoints": 6,
+    "average_response_time_ms": 190.5
+  },
+  "alerts_configured": [
+    {
+      "name": "High Response Time",
+      "condition": "response_time > 1000ms",
+      "severity": "warning",
+      "action": "Send Slack notification"
+    },
+    {
+      "name": "Service Down",
+      "condition": "health_check fails 3 times",
+      "severity": "critical",
+      "action": "Send email + Slack alert"
+    },
+    {
+      "name": "High Error Rate",
+      "condition": "error_rate > 5%",
+      "severity": "high",
+      "action": "Send Slack notification"
+    },
+    {
+      "name": "High CPU Usage",
+      "condition": "cpu_usage > 80%",
+      "severity": "warning",
+      "action": "Send Slack notification"
+    }
+  ],
+  "monitoring_stack": {
+    "metrics": "Prometheus",
+    "dashboards": "Grafana",
+    "logging": "Structured JSON logs",
+    "alerting": "Slack + Email"
+  },
+  "status": "monitoring_setup_completed"
+}

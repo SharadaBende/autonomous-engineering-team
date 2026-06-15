@@ -1,0 +1,52 @@
+# Prometheus configuration file
+global:
+  # Set the scrape interval to every 15 seconds
+  scrape_interval: 15s
+  # Set the evaluation interval to every 15 seconds
+  evaluation_interval: 15s
+
+# A scrape configuration for running on a single node.
+scrape_configs:
+  - job_name: 'node'
+    # Override the global default and scrape targets from this job every 5 seconds.
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: 'todoapp'
+    scrape_interval: 5s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['todoapp:9090']
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+      - alertmanager:9093
+
+# Rule configuration
+rule_files:
+  - "rules/*.yml"
+
+# Set environment variables for configuration
+env:
+  NODE_EXPORTER_PORT: 9100
+  TODOAPP_PORT: 9090
+  ALERTMANAGER_PORT: 9093
+
+# Set the alertmanager configuration
+alertmanager:
+  # Set the alertmanager port
+  port: ${ALERTMANAGER_PORT}
+
+# Set the node-exporter configuration
+node_exporter:
+  # Set the node-exporter port
+  port: ${NODE_EXPORTER_PORT}
+
+# Set the todoapp configuration
+todoapp:
+  # Set the todoapp port
+  port: ${TODOAPP_PORT}
