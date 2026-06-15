@@ -107,13 +107,13 @@ def run_coder_agent(architecture: dict, research: dict) -> dict:
                 lines = lines[:-1]
             code_content = '\n'.join(lines)
         
-        # Create directories if needed
-        if os.path.dirname(filename):
-            os.makedirs(os.path.dirname(filename), exist_ok=True)
+        # Save ALL generated files inside generated_projects folder
+        save_path = os.path.join('generated_projects', filename)
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         
         # Save the file
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(code_content)
+        with open(save_path, 'w', encoding='utf-8') as f:
+            f.write(file_content)
         
         print(f"✅ Created: {filename}")
         

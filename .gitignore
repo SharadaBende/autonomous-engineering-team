@@ -41,3 +41,6 @@ htmlcov/
 # Celery
 celerybeat-schedule
 celerybeat.pid
+
+# AI Generated Projects
+generated_projects/
