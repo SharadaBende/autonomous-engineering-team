@@ -1,28 +1,17 @@
-from groq import Groq
 import json
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-# Initialize Groq client
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils import call_groq, clean_json
 
 def run_researcher_agent(architecture: dict) -> dict:
-    """
-    Takes the architecture from Planner Agent and researches
-    best libraries, practices and potential pitfalls
-    """
-    
     print(f"🔍 Research Agent starting...")
     print(f"📋 Researching for: {architecture['project_name']}")
-    
-    # Build prompt from architecture
+
     prompt = f"""
     You are a senior software engineer and technical researcher.
     
     A project has been planned with the following architecture:
-    
     Project: {architecture['project_name']}
     Summary: {architecture['summary']}
     Tech Stack: {json.dumps(architecture['tech_stack'], indent=2)}
@@ -72,67 +61,35 @@ def run_researcher_agent(architecture: dict) -> dict:
     
     Return ONLY the JSON, no extra text.
     """
-    
-    # Call Groq API
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=4096,
-        temperature=0.7
-    )
-    
-    # Get response text
-    response_text = response.choices[0].message.content
-    
-    # Clean markdown code blocks if present
-    response_text = response_text.strip()
-    if response_text.startswith("```json"):
-        response_text = response_text[7:]
-    if response_text.startswith("```"):
-        response_text = response_text[3:]
-    if response_text.endswith("```"):
-        response_text = response_text[:-3]
-    response_text = response_text.strip()
-    
-    # Parse JSON
+
+    response_text = call_groq(prompt, max_tokens=4096, temperature=0.7)
+    response_text = clean_json(response_text)
     research = json.loads(response_text)
-    
+
     print(f"✅ Research Agent completed!")
     print(f"📚 Found {len(research['recommended_libraries'])} libraries")
     print(f"⚠️ Found {len(research['potential_pitfalls'])} potential pitfalls")
-    
     return research
 
 
-# Test the agent directly
 if __name__ == "__main__":
-    # Simulate architecture from planner agent
     test_architecture = {
         "project_name": "TodoApp",
-        "summary": "A todo app where users can create, edit and delete tasks with priorities and due dates, and user authentication",
+        "summary": "A todo app with user authentication",
         "tech_stack": {
             "frontend": "React",
             "backend": "Node.js with Express",
             "database": "MySQL",
             "cache": "Redis",
-            "deployment": "Docker with Kubernetes"
+            "deployment": "Docker"
         },
         "components": [
             {
                 "name": "User Authentication",
-                "description": "Handles user sign up, log in, and session management",
-                "technology": "Node.js with Express and Passport.js"
-            },
-            {
-                "name": "Task Management",
-                "description": "Handles task creation, editing, and deletion",
-                "technology": "Node.js with Express"
+                "description": "Handles user sign up and login",
+                "technology": "JWT"
             }
         ]
     }
-    
     result = run_researcher_agent(test_architecture)
-    print("\n📚 RESEARCH OUTPUT:")
     print(json.dumps(result, indent=2))

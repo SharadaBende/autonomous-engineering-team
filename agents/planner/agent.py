@@ -1,25 +1,15 @@
-from groq import Groq
 import json
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-# Initialize Groq client
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils import call_groq, clean_json
 
 def run_planner_agent(project_description: str) -> dict:
-    """
-    Takes a project description and returns a full technical architecture
-    """
-    
     print(f"🗺️ Planner Agent starting...")
     print(f"📋 Project: {project_description}")
-    
-    # The prompt we send to Groq
+
     prompt = f"""
     You are a senior software architect. A client has described a product they want built.
-    
     Your job is to create a detailed technical architecture for this product.
     
     Product Description:
@@ -67,43 +57,17 @@ def run_planner_agent(project_description: str) -> dict:
     
     Return ONLY the JSON, no extra text.
     """
-    
-    # Call Groq API
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=4096,
-        temperature=0.7
-    )
-    
-    # Get the response text
-    response_text = response.choices[0].message.content
-    
-    # Clean the response - remove markdown code blocks if present
-    response_text = response_text.strip()
-    if response_text.startswith("```json"):
-        response_text = response_text[7:]
-    if response_text.startswith("```"):
-        response_text = response_text[3:]
-    if response_text.endswith("```"):
-        response_text = response_text[:-3]
-    response_text = response_text.strip()
-    
-    # Parse JSON response
+
+    response_text = call_groq(prompt, max_tokens=4096, temperature=0.7)
+    response_text = clean_json(response_text)
     architecture = json.loads(response_text)
-    
+
     print(f"✅ Planner Agent completed!")
     print(f"📐 Architecture created for: {architecture['project_name']}")
-    
     return architecture
 
 
-# Test the agent directly
 if __name__ == "__main__":
-    test_description = "A todo app where users can create, edit and delete tasks. Users should be able to sign up and log in. Tasks should have priorities and due dates."
-    
+    test_description = "A todo app where users can create, edit and delete tasks."
     result = run_planner_agent(test_description)
-    print("\n📐 ARCHITECTURE OUTPUT:")
     print(json.dumps(result, indent=2))
