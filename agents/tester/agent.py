@@ -29,7 +29,7 @@ def read_project_files(files_list: list) -> dict:
                 files_content[filepath] = f.read()
     return files_content
 
-def run_tester_agent(architecture: dict, code_files: list) -> dict:
+def run_tester_agent(architecture: dict, code_files: list, project_folder: str = "generated_projects") -> dict:
     """
     Reads the generated code and writes tests for it
     """
@@ -130,11 +130,9 @@ def run_tester_agent(architecture: dict, code_files: list) -> dict:
                 lines = lines[:-1]
             test_content = '\n'.join(lines)
         
-        # Save ALL generated files inside generated_projects folder
-        save_path = os.path.join('generated_projects', filename)
+        save_path = os.path.join(project_folder, filename)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         
-        # Save the test file
         with open(save_path, 'w', encoding='utf-8') as f:
             f.write(test_content)
         

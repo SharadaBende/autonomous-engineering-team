@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Import all agents
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -18,126 +17,119 @@ from devops.agent import run_devops_agent
 from monitoring.agent import run_monitoring_agent
 
 def run_orchestrator(product_description: str) -> dict:
-    """
-    The brain — runs all agents in order and connects them together
-    """
-    
     print("🧠 Orchestrator starting...")
     print(f"📋 Product: {product_description}")
     print("=" * 60)
-    
+
     start_time = datetime.datetime.now()
     results = {}
-    
-    # ─── STEP 1: PLANNER AGENT ───
+
+    # ─── STEP 1: PLANNER ───
     print("\n🗺️  STEP 1/7 — Planner Agent")
     print("-" * 40)
     try:
         architecture = run_planner_agent(product_description)
-        results['planner'] = {
-            "status": "completed",
-            "output": architecture
-        }
+        results['planner'] = {"status": "completed", "output": architecture}
         print("✅ Planner Agent — DONE")
     except Exception as e:
         print(f"❌ Planner Agent failed: {e}")
         results['planner'] = {"status": "failed", "error": str(e)}
         return results
 
-    # ─── STEP 2: RESEARCH AGENT ───
+    # Create project folder
+    project_name = architecture.get('project_name', 'project').replace(' ', '_')
+    project_folder = os.path.join('generated_projects', project_name)
+    os.makedirs(project_folder, exist_ok=True)
+    print(f"📁 Project folder: {project_folder}")
+
+    # ─── STEP 2: RESEARCHER ───
     print("\n🔍 STEP 2/7 — Research Agent")
     print("-" * 40)
     try:
         research = run_researcher_agent(architecture)
-        results['researcher'] = {
-            "status": "completed",
-            "output": research
-        }
+        results['researcher'] = {"status": "completed", "output": research}
         print("✅ Research Agent — DONE")
     except Exception as e:
         print(f"❌ Research Agent failed: {e}")
         results['researcher'] = {"status": "failed", "error": str(e)}
+        research = {"recommended_libraries": [], "security_considerations": []}
 
-    # ─── STEP 3: CODING AGENT ───
+    # ─── STEP 3: CODER ───
     print("\n💻 STEP 3/7 — Coding Agent")
     print("-" * 40)
     try:
-        code_files_list = [
-            "backend/server.js",
-            "backend/routes/tasks.js",
-            "backend/routes/users.js",
-            "backend/models/User.js",
-            "backend/models/Task.js",
-            "backend/database/db.js"
-        ]
-        code_output = run_coder_agent(architecture, research)
-        results['coder'] = {
-            "status": "completed",
-            "output": code_output
-        }
+        code_output = run_coder_agent(architecture, research, project_folder)
+        results['coder'] = {"status": "completed", "output": code_output}
         print("✅ Coding Agent — DONE")
     except Exception as e:
         print(f"❌ Coding Agent failed: {e}")
         results['coder'] = {"status": "failed", "error": str(e)}
 
-    # ─── STEP 4: TESTING AGENT ───
+    # ─── STEP 4: TESTER ───
     print("\n🧪 STEP 4/7 — Testing Agent")
     print("-" * 40)
     try:
         code_files = [
-            "backend/server.js",
-            "backend/routes/tasks.js",
-            "backend/routes/users.js",
-            "backend/models/User.js",
-            "backend/database/db.js"
-        ]
-        test_report = run_tester_agent(architecture, code_files)
-        results['tester'] = {
-            "status": "completed",
-            "output": test_report
-        }
+            os.path.join(project_folder, f['filename'])
+            for f in code_output.get('files', [])
+        ] if results['coder']['status'] == 'completed' else []
+        test_report = run_tester_agent(architecture, code_files, project_folder)
+        results['tester'] = {"status": "completed", "output": test_report}
         print("✅ Testing Agent — DONE")
     except Exception as e:
         print(f"❌ Testing Agent failed: {e}")
         results['tester'] = {"status": "failed", "error": str(e)}
 
-    # ─── STEP 5: SECURITY AGENT ───
+    # ─── STEP 5: SECURITY ───
     print("\n🔒 STEP 5/7 — Security Agent")
     print("-" * 40)
     try:
+        code_files = [
+            os.path.join(project_folder, f['filename'])
+            for f in code_output.get('files', [])
+        ] if results['coder']['status'] == 'completed' else []
         security_report = run_security_agent(architecture, code_files)
-        results['security'] = {
-            "status": "completed",
-            "output": security_report
-        }
+        
+        # Save report to project folder
+        report_path = os.path.join(project_folder, 'security_report.json')
+        with open(report_path, 'w') as f:
+            json.dump(security_report, f, indent=2)
+        
+        results['security'] = {"status": "completed", "output": security_report}
         print("✅ Security Agent — DONE")
     except Exception as e:
         print(f"❌ Security Agent failed: {e}")
         results['security'] = {"status": "failed", "error": str(e)}
 
-    # ─── STEP 6: DEVOPS AGENT ───
+    # ─── STEP 6: DEVOPS ───
     print("\n⚙️  STEP 6/7 — DevOps Agent")
     print("-" * 40)
     try:
-        devops_report = run_devops_agent(architecture)
-        results['devops'] = {
-            "status": "completed",
-            "output": devops_report
-        }
+        devops_report = run_devops_agent(architecture, project_folder)
+        
+        # Save report to project folder
+        report_path = os.path.join(project_folder, 'devops_report.json')
+        with open(report_path, 'w') as f:
+            json.dump(devops_report, f, indent=2)
+        
+        results['devops'] = {"status": "completed", "output": devops_report}
         print("✅ DevOps Agent — DONE")
     except Exception as e:
         print(f"❌ DevOps Agent failed: {e}")
         results['devops'] = {"status": "failed", "error": str(e)}
 
-    # ─── STEP 7: MONITORING AGENT ───
+    # ─── STEP 7: MONITORING ───
     print("\n📊 STEP 7/7 — Monitoring Agent")
     print("-" * 40)
     try:
-        monitoring_report = run_monitoring_agent(architecture)
-        results['monitoring'] = {
-            "status": "completed",
-            "output": monitoring_report
-        }
+        monitoring_report = run_monitoring_agent(architecture, project_folder)
+        
+        # Save report to project folder
+        report_path = os.path.join(project_folder, 'monitoring_report.json')
+        with open(report_path, 'w') as f:
+            json.dump(monitoring_report, f, indent=2)
+        
+        results['monitoring'] = {"status": "completed", "output": monitoring_report}
         print("✅ Monitoring Agent — DONE")
     except Exception as e:
         print(f"❌ Monitoring Agent failed: {e}")
@@ -152,6 +144,8 @@ def run_orchestrator(product_description: str) -> dict:
 
     final_report = {
         "product_description": product_description,
+        "project_name": project_name,
+        "project_folder": project_folder,
         "started_at": start_time.isoformat(),
         "completed_at": end_time.isoformat(),
         "duration_seconds": duration,
@@ -161,8 +155,9 @@ def run_orchestrator(product_description: str) -> dict:
         "status": "completed" if failed == 0 else "completed_with_errors"
     }
 
-    # Save final report
-    with open('final_report.json', 'w', encoding='utf-8') as f:
+    # Save final report to project folder
+    report_path = os.path.join(project_folder, 'final_report.json')
+    with open(report_path, 'w') as f:
         json.dump(final_report, f, indent=2)
 
     print("\n" + "=" * 60)
@@ -171,12 +166,11 @@ def run_orchestrator(product_description: str) -> dict:
     print(f"✅ Agents completed: {completed}/7")
     print(f"❌ Agents failed: {failed}/7")
     print(f"⏱️  Total time: {duration} seconds")
-    print(f"📄 Full report saved to final_report.json")
+    print(f"📁 Project saved to: {project_folder}")
 
     return final_report
 
 
-# Run the orchestrator
 if __name__ == "__main__":
     product_description = input("🚀 Describe your product: ")
     result = run_orchestrator(product_description)

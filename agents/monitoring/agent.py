@@ -36,7 +36,7 @@ def check_health(endpoints: list) -> list:
         })
     return results
 
-def run_monitoring_agent(architecture: dict) -> dict:
+def run_monitoring_agent(architecture: dict, project_folder: str = "generated_projects") -> dict:
     """
     Sets up monitoring, health checks, alerts and metrics
     """
@@ -123,11 +123,9 @@ def run_monitoring_agent(architecture: dict) -> dict:
                 lines = lines[:-1]
             file_content = '\n'.join(lines)
         
-        # Save ALL generated files inside generated_projects folder
-        save_path = os.path.join('generated_projects', filename)
+        save_path = os.path.join(project_folder, filename)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         
-        # Save the file
         with open(save_path, 'w', encoding='utf-8') as f:
             f.write(file_content)
         

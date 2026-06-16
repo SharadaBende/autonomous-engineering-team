@@ -36,106 +36,58 @@ function App() {
     setIsRunning(true);
     setLogs([]);
     setFinalReport(null);
-
-    // Reset all agents
     setAgents(prev => prev.map(a => ({ ...a, status: 'idle', output: null })));
 
     addLog('🧠 Orchestrator starting...', 'info');
     addLog(`📋 Product: ${product}`, 'info');
 
-    const agentSteps = [
-      {
-        id: 1,
-        logs: [
-          '🗺️ Planner Agent starting...',
-          '📐 Analyzing product requirements...',
-          '✅ Architecture created!'
-        ],
-        output: 'Created full technical architecture with tech stack, components, API endpoints and database schema.'
-      },
-      {
-        id: 2,
-        logs: [
-          '🔍 Research Agent starting...',
-          '📚 Researching best libraries...',
-          '⚠️ Identifying potential pitfalls...',
-          '✅ Research completed!'
-        ],
-        output: 'Found 4 recommended libraries, 3 best practices, 2 potential pitfalls.'
-      },
-      {
-        id: 3,
-        logs: [
-          '💻 Coding Agent starting...',
-          '✍️ Writing backend files...',
-          '✍️ Writing frontend files...',
-          '✅ Code generated!'
-        ],
-        output: 'Generated 21 complete code files including backend APIs and React frontend.'
-      },
-      {
-        id: 4,
-        logs: [
-          '🧪 Testing Agent starting...',
-          '✍️ Writing unit tests...',
-          '✍️ Writing integration tests...',
-          '✅ Tests created!'
-        ],
-        output: 'Created 8 test files covering unit, integration and end-to-end tests.'
-      },
-      {
-        id: 5,
-        logs: [
-          '🔒 Security Agent starting...',
-          '🔍 Scanning for vulnerabilities...',
-          '⚠️ Found 22 vulnerabilities...',
-          '✅ Security audit completed!'
-        ],
-        output: '22 vulnerabilities found: 1 critical, 4 high, 11 medium, 6 low.'
-      },
-      {
-        id: 6,
-        logs: [
-          '⚙️ DevOps Agent starting...',
-          '🐳 Creating Docker files...',
-          '🚀 Setting up CI/CD pipeline...',
-          '✅ DevOps setup completed!'
-        ],
-        output: 'Created 9 DevOps files including Dockerfiles and GitHub Actions pipeline.'
-      },
-      {
-        id: 7,
-        logs: [
-          '📊 Monitoring Agent starting...',
-          '🏥 Setting up health checks...',
-          '🔔 Configuring alerts...',
-          '✅ Monitoring setup completed!'
-        ],
-        output: 'Created 7 monitoring files, 6 endpoints monitored, 4 alerts configured.'
-      }
-    ];
+    try {
+      setAgents(prev => prev.map(a => ({ ...a, status: 'running' })));
 
-    for (const step of agentSteps) {
-      updateAgent(step.id, 'running');
+      addLog('🗺️ Planner Agent starting...', 'info');
+      addLog('🔍 Research Agent starting...', 'info');
+      addLog('💻 Coding Agent starting...', 'info');
+      addLog('🧪 Testing Agent starting...', 'info');
+      addLog('🔒 Security Agent starting...', 'info');
+      addLog('⚙️ DevOps Agent starting...', 'info');
+      addLog('📊 Monitoring Agent starting...', 'info');
 
-      for (const log of step.logs) {
-        addLog(log, 'info');
-        await new Promise(r => setTimeout(r, 800));
-      }
+      const response = await fetch('http://localhost:8000/api/build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: product })
+      });
 
-      updateAgent(step.id, 'completed', step.output);
-      addLog(`✅ Agent ${step.id} completed!`, 'success');
-      await new Promise(r => setTimeout(r, 500));
+      const data = await response.json();
+
+      const agentNames = ['planner', 'researcher', 'coder', 'tester', 'security', 'devops', 'monitoring'];
+
+      agentNames.forEach((name, index) => {
+        const agentResult = data.results?.[name];
+        const status = agentResult?.status === 'completed' ? 'completed' : 'failed';
+        updateAgent(index + 1, status,
+          status === 'completed' ? `✅ ${name} completed successfully` : `❌ ${name} failed`
+        );
+        addLog(
+          `${status === 'completed' ? '✅' : '❌'} ${name} agent ${status}`,
+          status === 'completed' ? 'success' : 'error'
+        );
+      });
+
+      setFinalReport({
+        agents_completed: data.agents_completed,
+        agents_failed: data.agents_failed,
+        total_files: 45,
+        duration_seconds: data.duration_seconds
+      });
+
+      addLog('🎉 All agents completed!', 'success');
+
+    } catch (error) {
+      addLog(`❌ Error: ${error.message}`, 'error');
+      setAgents(prev => prev.map(a => ({ ...a, status: 'failed' })));
     }
 
-    setFinalReport({
-      agents_completed: 7,
-      agents_failed: 0,
-      total_files: 45,
-      duration_seconds: 42
-    });
-
-    addLog('🎉 All agents completed!', 'success');
     setIsRunning(false);
   };
 
@@ -159,8 +111,7 @@ function App() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#0f172a', color: '#e2e8f0', fontFamily: 'monospace' }}>
-      
-      {/* Header */}
+
       <div style={{ background: '#1e293b', padding: '20px 40px', borderBottom: '1px solid #334155' }}>
         <h1 style={{ margin: 0, fontSize: '24px', color: '#60a5fa' }}>
           🤖 Autonomous Engineering Team
@@ -172,7 +123,6 @@ function App() {
 
       <div style={{ padding: '30px 40px', maxWidth: '1200px', margin: '0 auto' }}>
 
-        {/* Input Section */}
         <div style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', marginBottom: '24px', border: '1px solid #334155' }}>
           <h2 style={{ margin: '0 0 16px', color: '#e2e8f0', fontSize: '18px' }}>
             🚀 Describe Your Product
@@ -180,7 +130,7 @@ function App() {
           <textarea
             value={product}
             onChange={(e) => setProduct(e.target.value)}
-            placeholder="Example: A todo app where users can create, edit and delete tasks. Users should be able to sign up and log in..."
+            placeholder="Example: A todo app where users can create, edit and delete tasks..."
             style={{
               width: '100%',
               height: '100px',
@@ -215,7 +165,6 @@ function App() {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
 
-          {/* Agents Panel */}
           <div style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', border: '1px solid #334155' }}>
             <h2 style={{ margin: '0 0 16px', color: '#e2e8f0', fontSize: '18px' }}>
               🤖 Agents Status
@@ -246,7 +195,6 @@ function App() {
             ))}
           </div>
 
-          {/* Logs Panel */}
           <div style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', border: '1px solid #334155' }}>
             <h2 style={{ margin: '0 0 16px', color: '#e2e8f0', fontSize: '18px' }}>
               📋 Live Logs
@@ -267,7 +215,7 @@ function App() {
                 logs.map((log, i) => (
                   <div key={i} style={{ marginBottom: '4px', fontSize: '13px' }}>
                     <span style={{ color: '#475569' }}>[{log.timestamp}] </span>
-                    <span style={{ color: log.type === 'success' ? '#10b981' : '#e2e8f0' }}>
+                    <span style={{ color: log.type === 'success' ? '#10b981' : log.type === 'error' ? '#ef4444' : '#e2e8f0' }}>
                       {log.message}
                     </span>
                   </div>
@@ -277,7 +225,6 @@ function App() {
           </div>
         </div>
 
-        {/* Final Report */}
         {finalReport && (
           <div style={{
             background: '#1e293b',

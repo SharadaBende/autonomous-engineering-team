@@ -20,7 +20,7 @@ def clean_json(text):
     text = text.strip()
     return text
 
-def run_devops_agent(architecture: dict) -> dict:
+def run_devops_agent(architecture: dict, project_folder: str = "generated_projects") -> dict:
     """
     Creates all DevOps files - Dockerfile, CI/CD pipeline, deployment scripts
     """
@@ -114,11 +114,9 @@ def run_devops_agent(architecture: dict) -> dict:
                 lines = lines[:-1]
             file_content = '\n'.join(lines)
         
-        # Save ALL generated files inside generated_projects folder
-        save_path = os.path.join('generated_projects', filename)
+        save_path = os.path.join(project_folder, filename)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         
-        # Save the file
         with open(save_path, 'w', encoding='utf-8') as f:
             f.write(file_content)
         
