@@ -69,18 +69,18 @@ function App() {
     setFinalReport(null);
     setAgents(prev => prev.map(a => ({ ...a, status: 'idle', output: null })));
 
-    addLog('🧠 Orchestrator starting...', 'info');
-    addLog(`📋 Product: ${product}`, 'info');
+    addLog('Orchestrator starting...', 'info');
+    addLog(`Product: ${product}`, 'info');
 
     try {
       setAgents(prev => prev.map(a => ({ ...a, status: 'running' })));
-      addLog('🗺️ Planner Agent starting...', 'info');
-      addLog('🔍 Research Agent starting...', 'info');
-      addLog('💻 Coding Agent starting...', 'info');
-      addLog('🧪 Testing Agent starting...', 'info');
-      addLog('🔒 Security Agent starting...', 'info');
-      addLog('⚙️ DevOps Agent starting...', 'info');
-      addLog('📊 Monitoring Agent starting...', 'info');
+      addLog('Planner Agent starting...', 'info');
+      addLog('Research Agent starting...', 'info');
+      addLog('Coding Agent starting...', 'info');
+      addLog('Testing Agent starting...', 'info');
+      addLog('Security Agent starting...', 'info');
+      addLog('DevOps Agent starting...', 'info');
+      addLog('Monitoring Agent starting...', 'info');
 
       const response = await fetch('http://localhost:8000/api/build', {
         method: 'POST',
@@ -95,10 +95,10 @@ function App() {
         const agentResult = data.results?.[name];
         const status = agentResult?.status === 'completed' ? 'completed' : 'failed';
         updateAgent(index + 1, status,
-          status === 'completed' ? `✅ ${name} completed` : `❌ ${name} failed`
+          status === 'completed' ? `${name} completed` : `${name} failed`
         );
         addLog(
-          `${status === 'completed' ? '✅' : '❌'} ${name} agent ${status}`,
+          `${name} agent ${status}`,
           status === 'completed' ? 'success' : 'error'
         );
       });
@@ -110,161 +110,245 @@ function App() {
         duration_seconds: data.duration_seconds
       });
 
-      addLog('🎉 All agents completed!', 'success');
+      addLog('All agents completed', 'success');
       fetchProjects();
 
     } catch (error) {
-      addLog(`❌ Error: ${error.message}`, 'error');
+      addLog(`Error: ${error.message}`, 'error');
       setAgents(prev => prev.map(a => ({ ...a, status: 'failed' })));
     }
 
     setIsRunning(false);
   };
 
-  const getStatusColor = (status) => {
+  const getStatusStyles = (status) => {
     switch (status) {
-      case 'running': return '#f59e0b';
-      case 'completed': return '#10b981';
-      case 'failed': return '#ef4444';
-      default: return '#6b7280';
+      case 'running': return { color: '#b5742a', bg: '#fdf3e6', dot: '#d97706' };
+      case 'completed': return { color: '#1e7a4d', bg: '#eafaf1', dot: '#16a34a' };
+      case 'failed': return { color: '#c0392b', bg: '#fdeeee', dot: '#dc2626' };
+      default: return { color: '#7c7a76', bg: '#f4f3f1', dot: '#a8a6a1' };
     }
   };
 
   const getStatusText = (status) => {
     switch (status) {
-      case 'running': return '⚡ Running...';
-      case 'completed': return '✅ Completed';
-      case 'failed': return '❌ Failed';
-      default: return '⏳ Idle';
+      case 'running': return 'Running';
+      case 'completed': return 'Completed';
+      case 'failed': return 'Failed';
+      default: return 'Idle';
     }
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f172a', color: '#e2e8f0', fontFamily: 'monospace' }}>
+    <div style={{
+      minHeight: '100vh',
+      background: '#f7f6f4',
+      color: '#2d2c2a',
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    }}>
 
       {/* Header */}
-      <div style={{ background: '#1e293b', padding: '20px 40px', borderBottom: '1px solid #334155' }}>
-        <h1 style={{ margin: 0, fontSize: '24px', color: '#60a5fa' }}>
-          🤖 Autonomous Engineering Team
-        </h1>
-        <p style={{ margin: '5px 0 0', color: '#94a3b8', fontSize: '14px' }}>
-          AI agents that build software automatically
-        </p>
+      <div style={{
+        background: '#ffffff',
+        padding: '18px 40px',
+        borderBottom: '1px solid #ebe9e6',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: '34px',
+            height: '34px',
+            borderRadius: '8px',
+            background: '#da7756',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '18px'
+          }}>
+            🤖
+          </div>
+          <div>
+            <div style={{ fontSize: '16px', fontWeight: 600, color: '#2d2c2a' }}>
+              Autonomous Engineering Team
+            </div>
+            <div style={{ fontSize: '12.5px', color: '#8a8782' }}>
+              AI agents that build software automatically
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div style={{ background: '#1e293b', padding: '0 40px', borderBottom: '1px solid #334155' }}>
-        {['build', 'projects'].map(tab => (
+      <div style={{
+        background: '#ffffff',
+        padding: '0 40px',
+        borderBottom: '1px solid #ebe9e6',
+        display: 'flex',
+        gap: '4px'
+      }}>
+        {[{ id: 'build', label: 'Build' }, { id: 'projects', label: 'Projects' }].map(tab => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
             style={{
-              padding: '12px 24px',
+              padding: '14px 18px',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === tab ? '2px solid #3b82f6' : '2px solid transparent',
-              color: activeTab === tab ? '#60a5fa' : '#94a3b8',
+              borderBottom: activeTab === tab.id ? '2px solid #da7756' : '2px solid transparent',
+              color: activeTab === tab.id ? '#2d2c2a' : '#8a8782',
+              fontWeight: activeTab === tab.id ? 600 : 500,
               cursor: 'pointer',
               fontSize: '14px',
-              fontFamily: 'monospace',
-              textTransform: 'capitalize'
+              fontFamily: 'inherit'
             }}
           >
-            {tab === 'build' ? '🚀 Build' : '📁 Projects'}
+            {tab.label}
           </button>
         ))}
       </div>
 
-      <div style={{ padding: '30px 40px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ padding: '32px 40px', maxWidth: '1100px', margin: '0 auto' }}>
 
         {/* Build Tab */}
         {activeTab === 'build' && (
           <>
-            <div style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', marginBottom: '24px', border: '1px solid #334155' }}>
-              <h2 style={{ margin: '0 0 16px', color: '#e2e8f0', fontSize: '18px' }}>
-                🚀 Describe Your Product
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '14px',
+              padding: '22px',
+              marginBottom: '20px',
+              border: '1px solid #ebe9e6',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+            }}>
+              <h2 style={{ margin: '0 0 4px', color: '#2d2c2a', fontSize: '16px', fontWeight: 600 }}>
+                Describe your product
               </h2>
+              <p style={{ margin: '0 0 14px', color: '#8a8782', fontSize: '13px' }}>
+                Plain English is fine — the agents will figure out the rest.
+              </p>
               <textarea
                 value={product}
                 onChange={(e) => setProduct(e.target.value)}
-                placeholder="Example: A food delivery app where customers can order food from restaurants and track delivery in real time..."
+                placeholder="A food delivery app where customers can order food from restaurants and track delivery in real time..."
                 style={{
                   width: '100%',
-                  height: '100px',
-                  background: '#0f172a',
-                  border: '1px solid #334155',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  color: '#e2e8f0',
+                  height: '90px',
+                  background: '#faf9f7',
+                  border: '1px solid #e3e1dd',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  color: '#2d2c2a',
                   fontSize: '14px',
                   resize: 'vertical',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  fontFamily: 'inherit',
+                  outline: 'none'
                 }}
               />
               <button
                 onClick={simulateAgents}
                 disabled={isRunning}
                 style={{
-                  marginTop: '12px',
-                  padding: '12px 32px',
-                  background: isRunning ? '#334155' : '#3b82f6',
-                  color: 'white',
+                  marginTop: '14px',
+                  padding: '10px 22px',
+                  background: isRunning ? '#e3e1dd' : '#da7756',
+                  color: isRunning ? '#9a978f' : '#ffffff',
                   border: 'none',
                   borderRadius: '8px',
-                  fontSize: '16px',
+                  fontSize: '14px',
+                  fontWeight: 600,
                   cursor: isRunning ? 'not-allowed' : 'pointer',
-                  fontFamily: 'monospace'
+                  fontFamily: 'inherit',
+                  transition: 'background 0.15s'
                 }}
               >
-                {isRunning ? '⚡ Agents Running...' : '🚀 Start Building'}
+                {isRunning ? 'Agents running…' : 'Start building'}
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-              <div style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', border: '1px solid #334155' }}>
-                <h2 style={{ margin: '0 0 16px', color: '#e2e8f0', fontSize: '18px' }}>🤖 Agents Status</h2>
-                {agents.map(agent => (
-                  <div key={agent.id} style={{
-                    background: '#0f172a',
-                    borderRadius: '8px',
-                    padding: '12px 16px',
-                    marginBottom: '8px',
-                    borderLeft: `3px solid ${getStatusColor(agent.status)}`
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '14px' }}>{agent.icon} {agent.name}</span>
-                      <span style={{ fontSize: '12px', color: getStatusColor(agent.status) }}>
-                        {getStatusText(agent.status)}
-                      </span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+
+              {/* Agents Panel */}
+              <div style={{
+                background: '#ffffff',
+                borderRadius: '14px',
+                padding: '20px',
+                border: '1px solid #ebe9e6'
+              }}>
+                <h2 style={{ margin: '0 0 14px', color: '#2d2c2a', fontSize: '15px', fontWeight: 600 }}>
+                  Agents
+                </h2>
+                {agents.map(agent => {
+                  const s = getStatusStyles(agent.status);
+                  return (
+                    <div key={agent.id} style={{
+                      background: '#faf9f7',
+                      borderRadius: '10px',
+                      padding: '11px 14px',
+                      marginBottom: '8px',
+                      border: '1px solid #efeeea'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '13.5px', color: '#2d2c2a' }}>
+                          {agent.icon} {agent.name}
+                        </span>
+                        <span style={{
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          color: s.color,
+                          background: s.bg,
+                          padding: '3px 9px',
+                          borderRadius: '20px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: s.dot }} />
+                          {getStatusText(agent.status)}
+                        </span>
+                      </div>
+                      {agent.output && (
+                        <p style={{ margin: '7px 0 0', fontSize: '12px', color: '#8a8782' }}>
+                          {agent.output}
+                        </p>
+                      )}
                     </div>
-                    {agent.output && (
-                      <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#94a3b8' }}>
-                        {agent.output}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              <div style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', border: '1px solid #334155' }}>
-                <h2 style={{ margin: '0 0 16px', color: '#e2e8f0', fontSize: '18px' }}>📋 Live Logs</h2>
+              {/* Logs Panel */}
+              <div style={{
+                background: '#ffffff',
+                borderRadius: '14px',
+                padding: '20px',
+                border: '1px solid #ebe9e6'
+              }}>
+                <h2 style={{ margin: '0 0 14px', color: '#2d2c2a', fontSize: '15px', fontWeight: 600 }}>
+                  Activity
+                </h2>
                 <div style={{
-                  background: '#0f172a',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  height: '380px',
+                  background: '#faf9f7',
+                  borderRadius: '10px',
+                  padding: '14px',
+                  height: '360px',
                   overflowY: 'auto',
-                  border: '1px solid #334155'
+                  border: '1px solid #efeeea',
+                  fontFamily: "'JetBrains Mono', monospace"
                 }}>
                   {logs.length === 0 ? (
-                    <p style={{ color: '#475569', fontSize: '13px' }}>
-                      Logs will appear here when agents start running...
+                    <p style={{ color: '#b3b0aa', fontSize: '12.5px', margin: 0 }}>
+                      Activity will appear here once you start building.
                     </p>
                   ) : (
                     logs.map((log, i) => (
-                      <div key={i} style={{ marginBottom: '4px', fontSize: '13px' }}>
-                        <span style={{ color: '#475569' }}>[{log.timestamp}] </span>
-                        <span style={{ color: log.type === 'success' ? '#10b981' : log.type === 'error' ? '#ef4444' : '#e2e8f0' }}>
+                      <div key={i} style={{ marginBottom: '6px', fontSize: '12.5px', lineHeight: 1.5 }}>
+                        <span style={{ color: '#b3b0aa' }}>{log.timestamp}  </span>
+                        <span style={{
+                          color: log.type === 'success' ? '#1e7a4d' : log.type === 'error' ? '#c0392b' : '#56544f'
+                        }}>
                           {log.message}
                         </span>
                       </div>
@@ -276,33 +360,32 @@ function App() {
 
             {finalReport && (
               <div style={{
-                background: '#1e293b',
-                borderRadius: '12px',
-                padding: '24px',
-                marginTop: '24px',
-                border: '1px solid #10b981'
+                background: '#ffffff',
+                borderRadius: '14px',
+                padding: '22px',
+                marginTop: '20px',
+                border: '1px solid #d9ecdf'
               }}>
-                <h2 style={{ margin: '0 0 16px', color: '#10b981', fontSize: '18px' }}>
-                  🎉 Build Completed!
+                <h2 style={{ margin: '0 0 16px', color: '#1e7a4d', fontSize: '15px', fontWeight: 600 }}>
+                  Build completed
                 </h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '18px' }}>
                   {[
-                    { label: 'Agents Completed', value: `${finalReport.agents_completed}/7`, color: '#10b981' },
-                    { label: 'Agents Failed', value: finalReport.agents_failed, color: '#ef4444' },
-                    { label: 'Project Name', value: finalReport.project_name, color: '#60a5fa' },
-                    { label: 'Time Taken', value: `${finalReport.duration_seconds}s`, color: '#f59e0b' }
+                    { label: 'Agents completed', value: `${finalReport.agents_completed}/7` },
+                    { label: 'Agents failed', value: finalReport.agents_failed },
+                    { label: 'Project', value: finalReport.project_name },
+                    { label: 'Time taken', value: `${finalReport.duration_seconds}s` }
                   ].map((stat, i) => (
                     <div key={i} style={{
-                      background: '#0f172a',
-                      borderRadius: '8px',
-                      padding: '16px',
-                      textAlign: 'center',
-                      border: '1px solid #334155'
+                      background: '#faf9f7',
+                      borderRadius: '10px',
+                      padding: '14px',
+                      border: '1px solid #efeeea'
                     }}>
-                      <div style={{ fontSize: '20px', fontWeight: 'bold', color: stat.color }}>
+                      <div style={{ fontSize: '16px', fontWeight: 600, color: '#2d2c2a' }}>
                         {stat.value}
                       </div>
-                      <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+                      <div style={{ fontSize: '11.5px', color: '#8a8782', marginTop: '3px' }}>
                         {stat.label}
                       </div>
                     </div>
@@ -311,17 +394,18 @@ function App() {
                 <button
                   onClick={() => downloadProject(finalReport.project_name)}
                   style={{
-                    padding: '12px 32px',
-                    background: '#10b981',
+                    padding: '10px 22px',
+                    background: '#2d2c2a',
                     color: 'white',
                     border: 'none',
                     borderRadius: '8px',
-                    fontSize: '16px',
+                    fontSize: '14px',
+                    fontWeight: 600,
                     cursor: 'pointer',
-                    fontFamily: 'monospace'
+                    fontFamily: 'inherit'
                   }}
                 >
-                  📦 Download Project ZIP
+                  Download project (.zip)
                 </button>
               </div>
             )}
@@ -330,46 +414,54 @@ function App() {
 
         {/* Projects Tab */}
         {activeTab === 'projects' && (
-          <div style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', border: '1px solid #334155' }}>
-            <h2 style={{ margin: '0 0 16px', color: '#e2e8f0', fontSize: '18px' }}>
-              📁 Generated Projects
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '14px',
+            padding: '20px',
+            border: '1px solid #ebe9e6'
+          }}>
+            <h2 style={{ margin: '0 0 16px', color: '#2d2c2a', fontSize: '15px', fontWeight: 600 }}>
+              Generated projects
             </h2>
             {projects.length === 0 ? (
-              <p style={{ color: '#475569' }}>No projects generated yet. Go to Build tab to create one!</p>
+              <p style={{ color: '#8a8782', fontSize: '13.5px' }}>
+                No projects yet. Head to Build to create your first one.
+              </p>
             ) : (
               projects.map((project, i) => (
                 <div key={i} style={{
-                  background: '#0f172a',
-                  borderRadius: '8px',
-                  padding: '16px',
-                  marginBottom: '12px',
-                  border: '1px solid #334155',
+                  background: '#faf9f7',
+                  borderRadius: '10px',
+                  padding: '14px 16px',
+                  marginBottom: '10px',
+                  border: '1px solid #efeeea',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center'
                 }}>
                   <div>
-                    <div style={{ fontSize: '16px', color: '#60a5fa' }}>
-                      📁 {project.name}
+                    <div style={{ fontSize: '14.5px', color: '#2d2c2a', fontWeight: 600 }}>
+                      {project.name}
                     </div>
-                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+                    <div style={{ fontSize: '12px', color: '#8a8782', marginTop: '3px' }}>
                       {project.files} files generated
                     </div>
                   </div>
                   <button
                     onClick={() => downloadProject(project.name)}
                     style={{
-                      padding: '8px 20px',
-                      background: '#3b82f6',
+                      padding: '8px 18px',
+                      background: '#2d2c2a',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '14px',
+                      borderRadius: '7px',
+                      fontSize: '13px',
+                      fontWeight: 600,
                       cursor: 'pointer',
-                      fontFamily: 'monospace'
+                      fontFamily: 'inherit'
                     }}
                   >
-                    📦 Download ZIP
+                    Download
                   </button>
                 </div>
               ))
