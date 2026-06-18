@@ -1,25 +1,29 @@
 import json
 import os
 import sys
+import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import call_groq, clean_json
 
-def read_code_files(files_list: list) -> dict:
+
+def read_code_files(files_list: list, project_folder: str = "") -> dict:
+    """Read files — tries both raw path and project_folder-prefixed path."""
     files_content = {}
     for filepath in files_list:
-        if os.path.exists(filepath):
-            with open(filepath, 'r', encoding='utf-8') as f:
-                files_content[filepath] = f.read()
+        candidates = [filepath]
+        if project_folder:
+            candidates.append(os.path.join(project_folder, filepath))
+        for candidate in candidates:
+            if os.path.exists(candidate):
+                with open(candidate, 'r', encoding='utf-8') as f:
+                    files_content[candidate] = f.read()
+                break
     return files_content
 
 
 def check_spec_compliance(architecture: dict, files_content: dict) -> list:
-    """
-    New: compare the combined codebase against the original product description.
-    Returns a list of missing-feature findings in the same vulnerability format.
-    """
     all_code = "\n\n".join(
-        f"# FILE: {path}\n{code[:1500]}" 
+        f"# FILE: {path}\n{code[:2000]}"
         for path, code in files_content.items()
     )
 
@@ -36,7 +40,7 @@ def check_spec_compliance(architecture: dict, files_content: dict) -> list:
     {json.dumps(architecture.get('tech_stack', {}), indent=2)}
 
     Actual generated code:
-    {all_code[:4000]}
+    {all_code[:6000]}
 
     Your job: find requirements from the spec that are MISSING or BROKEN in the code.
     Missing functionality is a security finding — e.g. a spec says "rate limiting" but
@@ -52,11 +56,11 @@ def check_spec_compliance(architecture: dict, files_content: dict) -> list:
             "fix": "how to add the missing implementation"
         }}
     ]
-    Return ONLY the JSON array, no extra text.
+    Return ONLY the JSON array, no markdown, no extra text.
     """
 
     try:
-        result = call_groq(compliance_prompt, max_tokens=1500, temperature=0.1)
+        result = call_groq(compliance_prompt, max_tokens=4000, temperature=0.1)
         result = clean_json(result)
         findings = json.loads(result)
         return findings if isinstance(findings, list) else []
@@ -65,17 +69,20 @@ def check_spec_compliance(architecture: dict, files_content: dict) -> list:
         return []
 
 
-def run_security_agent(architecture: dict, code_files: list) -> dict:
+def run_security_agent(architecture: dict, code_files: list, project_folder: str = "") -> dict:
     print(f"🔒 Security Agent starting...")
     print(f"📋 Auditing: {architecture['project_name']}")
 
     print("📖 Reading code files for security analysis...")
-    files_content = read_code_files(code_files)
+    files_content = read_code_files(code_files, project_folder)
+
+    if not files_content:
+        print("  ⚠️  No code files found to audit — check paths passed from coder agent")
 
     all_vulnerabilities = []
     file_reports = []
 
-    # ── Pass 1: per-file vulnerability scan (unchanged logic) ────────────
+    # ── Pass 1: per-file vulnerability scan ──────────────────────────────
     for filepath, content in files_content.items():
         print(f"🔍 Auditing {filepath}...")
 
@@ -85,7 +92,7 @@ def run_security_agent(architecture: dict, code_files: list) -> dict:
         Audit this code file for security vulnerabilities:
         File: {filepath}
         Code:
-        {content[:3000]}
+        {content[:5000]}
         
         Check for:
         1. SQL Injection
@@ -96,7 +103,7 @@ def run_security_agent(architecture: dict, code_files: list) -> dict:
         6. CSRF vulnerabilities
         7. Sensitive data exposure
         
-        Return ONLY a JSON object:
+        Return ONLY a JSON object, no markdown, no extra text:
         {{
             "file": "{filepath}",
             "risk_level": "low/medium/high/critical",
@@ -111,11 +118,10 @@ def run_security_agent(architecture: dict, code_files: list) -> dict:
             ],
             "secure_code_suggestions": ["suggestion 1", "suggestion 2"]
         }}
-        Return ONLY the JSON, no extra text.
         """
 
         try:
-            result_text = call_groq(audit_prompt, max_tokens=2000, temperature=0.1)
+            result_text = call_groq(audit_prompt, max_tokens=4000, temperature=0.1)
             result_text = clean_json(result_text)
             file_report = json.loads(result_text)
             file_reports.append(file_report)
@@ -129,7 +135,10 @@ def run_security_agent(architecture: dict, code_files: list) -> dict:
             print(f"  ⚠️  Could not audit {filepath}: {e}")
             continue
 
-    # ── Pass 2: spec compliance check (NEW) ──────────────────────────────
+        # Pause between files to avoid rate limits
+        time.sleep(2)
+
+    # ── Pass 2: spec compliance check ────────────────────────────────────
     print(f"📐 Checking spec compliance...")
     spec_findings = check_spec_compliance(architecture, files_content)
 
@@ -138,10 +147,9 @@ def run_security_agent(architecture: dict, code_files: list) -> dict:
         for f in spec_findings:
             print(f"     - [{f.get('severity','?').upper()}] {f.get('description','')[:80]}")
         all_vulnerabilities.extend(spec_findings)
-        # Add a synthetic file report so spec issues appear in the report structure
         file_reports.append({
             "file": "SPEC_COMPLIANCE",
-            "risk_level": "high" if any(f.get("severity") in ("high","critical") for f in spec_findings) else "medium",
+            "risk_level": "high" if any(f.get("severity") in ("high", "critical") for f in spec_findings) else "medium",
             "vulnerabilities": spec_findings,
             "secure_code_suggestions": ["Verify every requirement in the spec is implemented before shipping"]
         })
@@ -173,7 +181,7 @@ def run_security_agent(architecture: dict, code_files: list) -> dict:
             "Store secrets in environment variables",
             "Use HTTPS for all communications",
             "Implement rate limiting",
-            "Verify all spec requirements are implemented before deployment"  # new
+            "Verify all spec requirements are implemented before deployment"
         ],
         "status": "audit_completed"
     }
@@ -206,5 +214,5 @@ if __name__ == "__main__":
         "backend/server.js",
         "backend/routes/tasks.js"
     ]
-    result = run_security_agent(test_architecture, code_files)
+    result = run_security_agent(test_architecture, code_files, "generated_projects/TodoApp")
     print(json.dumps(result, indent=2))
