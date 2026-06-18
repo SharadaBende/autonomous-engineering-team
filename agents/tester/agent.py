@@ -1,8 +1,10 @@
 import json
 import os
 import sys
+import re
 import subprocess
 import shutil
+import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import call_groq, clean_json
 
@@ -16,7 +18,6 @@ def read_project_files(files_list: list) -> dict:
 
 
 def detect_test_framework(tech_stack: dict, filename: str) -> str:
-    """Return 'pytest' or 'jest' based on tech stack and filename."""
     backend = tech_stack.get("backend", "").lower()
     if filename.endswith(".py") or "python" in backend or "fastapi" in backend or "flask" in backend or "django" in backend:
         return "pytest"
@@ -24,10 +25,6 @@ def detect_test_framework(tech_stack: dict, filename: str) -> str:
 
 
 def run_tests(test_filepath: str, framework: str, project_folder: str) -> dict:
-    """
-    Actually execute the test file and return real results.
-    Returns a dict with: passed, failed, errors, output, ran_ok
-    """
     result_base = {"passed": 0, "failed": 0, "errors": [], "output": "", "ran_ok": False}
 
     if framework == "pytest":
@@ -35,7 +32,6 @@ def run_tests(test_filepath: str, framework: str, project_folder: str) -> dict:
         if not runner:
             result_base["errors"].append("pytest not found in PATH — install with: pip install pytest")
             return result_base
-
         cmd = [runner, "-v", "--tb=short", test_filepath] if "pytest" in runner else [runner, "-m", "pytest", "-v", "--tb=short", test_filepath]
 
     elif framework == "jest":
@@ -55,18 +51,15 @@ def run_tests(test_filepath: str, framework: str, project_folder: str) -> dict:
             cwd=project_folder,
             capture_output=True,
             text=True,
-            timeout=60  # don't hang forever
+            timeout=60
         )
         output = proc.stdout + proc.stderr
-        result_base["output"] = output[:3000]  # cap for report readability
+        result_base["output"] = output[:3000]
         result_base["ran_ok"] = True
 
-        # --- Parse pytest output ---
         if framework == "pytest":
             for line in output.splitlines():
-                # e.g. "5 passed, 2 failed, 1 error"
                 if "passed" in line or "failed" in line or "error" in line:
-                    import re
                     passed = re.search(r"(\d+) passed", line)
                     failed = re.search(r"(\d+) failed", line)
                     errors = re.search(r"(\d+) error", line)
@@ -77,9 +70,7 @@ def run_tests(test_filepath: str, framework: str, project_folder: str) -> dict:
                     if errors:
                         result_base["errors"].append(f"{errors.group(1)} error(s) during collection/run")
 
-        # --- Parse jest output ---
         elif framework == "jest":
-            import re
             passed = re.search(r"(\d+) passed", output)
             failed = re.search(r"(\d+) failed", output)
             if passed:
@@ -111,16 +102,22 @@ def run_tester_agent(architecture: dict, code_files: list, project_folder: str =
     {json.dumps(list(files_content.keys()), indent=2)}
     
     List all test files needed for this project.
-    Return ONLY a JSON array:
+    Return ONLY a JSON array, no markdown, no extra text:
     [
         {{"filename": "tests/test_server.py", "description": "tests for server", "tests_for": "backend/server.py"}}
     ]
-    Return ONLY the JSON array, no extra text.
     """
 
-    files_text = call_groq(files_prompt, max_tokens=1000, temperature=0.3)
+    files_text = call_groq(files_prompt, max_tokens=2000, temperature=0.2)
     files_text = clean_json(files_text)
-    test_files_list = json.loads(files_text)
+
+    try:
+        test_files_list = json.loads(files_text)
+    except json.JSONDecodeError as e:
+        print(f"❌ Failed to parse test file list: {e}")
+        print(f"Raw response:\n{files_text[:500]}")
+        raise
+
     print(f"📁 Will create {len(test_files_list)} test files")
 
     created_tests = []
@@ -132,12 +129,11 @@ def run_tester_agent(architecture: dict, code_files: list, project_folder: str =
         filename = test_info['filename']
         description = test_info['description']
         tests_for = test_info.get('tests_for', '')
-        print(f"✍️ Writing {filename}...")
+        print(f"✍️  Writing {filename}...")
 
         source_code = files_content.get(tests_for, "# Source file not found")
         framework = detect_test_framework(architecture['tech_stack'], filename)
 
-        # Choose the right prompt based on framework
         if framework == "pytest":
             test_instructions = """
         Use pytest. Import from the source file using relative imports or sys.path.
@@ -156,7 +152,7 @@ def run_tester_agent(architecture: dict, code_files: list, project_folder: str =
 
         File to test: {tests_for}
         Source code:
-        {source_code[:2000]}
+        {source_code[:4000]}
         
         {test_instructions}
         
@@ -165,13 +161,13 @@ def run_tester_agent(architecture: dict, code_files: list, project_folder: str =
         - Edge cases (empty input, invalid types, missing fields)
         - Error handling (what happens when things fail)
         
-        Return ONLY the raw test code. No explanations. No markdown fences.
+        Return ONLY the raw test code. No explanations. No markdown fences (no ```).
         """
 
         try:
-            test_content = call_groq(test_prompt, max_tokens=2000, temperature=0.3)
+            test_content = call_groq(test_prompt, max_tokens=8000, temperature=0.3)
 
-            # Strip markdown fences if the model added them anyway
+            # Strip markdown fences if Gemini adds them anyway
             if test_content.startswith("```"):
                 lines = test_content.split('\n')
                 lines = lines[1:]
@@ -187,7 +183,6 @@ def run_tester_agent(architecture: dict, code_files: list, project_folder: str =
 
             print(f"✅ Created: {save_path}")
 
-            # ── NEW: Actually run the tests ──────────────────────────────
             print(f"▶️  Running {filename} with {framework}...")
             run_result = run_tests(save_path, framework, project_folder)
 
@@ -213,22 +208,23 @@ def run_tester_agent(architecture: dict, code_files: list, project_folder: str =
                     "failed": run_result["failed"],
                     "ran_ok": run_result["ran_ok"],
                     "errors": run_result["errors"],
-                    # Truncate raw output in the JSON report; full output was already printed
                     "output_preview": run_result["output"][:500] if run_result["output"] else ""
                 }
             })
 
+            # Pause between files to avoid rate limits
+            time.sleep(2)
+
         except Exception as e:
-            print(f"⚠️ Skipping {filename}: {e}")
+            print(f"⚠️  Skipping {filename}: {e}")
             continue
 
-    # ── Overall status ───────────────────────────────────────────────────
     if all_failed == 0 and all_passed > 0:
         overall_status = "all_tests_passed"
     elif all_failed > 0:
         overall_status = "some_tests_failed"
     elif not any(t["run_result"]["ran_ok"] for t in created_tests):
-        overall_status = "tests_generated_not_executed"  # runner not available
+        overall_status = "tests_generated_not_executed"
     else:
         overall_status = "tests_generated"
 
