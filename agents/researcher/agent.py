@@ -59,16 +59,26 @@ def run_researcher_agent(architecture: dict) -> dict:
         "estimated_time": "estimated development time"
     }}
     
-    Return ONLY the JSON, no extra text.
+    Rules:
+    - Return ONLY raw JSON, no markdown, no code fences, no extra text
+    - No comments inside the JSON
+    - All strings must be properly escaped
+    - Do not truncate — complete the entire JSON
     """
 
-    response_text = call_groq(prompt, max_tokens=4096, temperature=0.7)
+    response_text = call_groq(prompt, max_tokens=8000, temperature=0.2)
     response_text = clean_json(response_text)
-    research = json.loads(response_text)
+
+    try:
+        research = json.loads(response_text)
+    except json.JSONDecodeError as e:
+        print(f"❌ Failed to parse JSON: {e}")
+        print(f"Raw response:\n{response_text[:500]}")
+        raise
 
     print(f"✅ Research Agent completed!")
     print(f"📚 Found {len(research['recommended_libraries'])} libraries")
-    print(f"⚠️ Found {len(research['potential_pitfalls'])} potential pitfalls")
+    print(f"⚠️  Found {len(research['potential_pitfalls'])} potential pitfalls")
     return research
 
 
