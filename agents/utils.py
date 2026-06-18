@@ -1,50 +1,69 @@
 import time
-from groq import Groq
 import os
+import json
+import urllib.request
+import urllib.error
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    "gemini-2.5-flash:generateContent?key=" + (GEMINI_API_KEY or "")
+)
 
 def call_groq(prompt, max_tokens=2000, temperature=0.3, max_retries=5):
     """
-    Call Groq API with automatic retry on rate limit
+    Drop-in replacement for Groq — now calls Gemini 1.5 Flash.
+    Function name kept as call_groq so all 7 agents work without any changes.
     """
+    payload = json.dumps({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "maxOutputTokens": max_tokens,
+            "temperature": temperature
+        }
+    }).encode("utf-8")
+
     for attempt in range(max_retries):
         try:
-            response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=max_tokens,
-                temperature=temperature
+            req = urllib.request.Request(
+                GEMINI_URL,
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST"
             )
-            return response.choices[0].message.content.strip()
-        
-        except Exception as e:
-            error_msg = str(e)
-            
-            if "429" in error_msg:
-                # Extract wait time from error message
+            with urllib.request.urlopen(req) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            status = e.code
+
+            if status == 429:
+                # Gemini rate limit — back off and retry
                 wait_time = 60
-                if "Please try again in" in error_msg:
-                    try:
-                        time_str = error_msg.split("Please try again in")[1].split(".")[0].strip()
-                        if "m" in time_str:
-                            minutes = float(time_str.replace("m", "").strip())
-                            wait_time = int(minutes * 60) + 10
-                        elif "s" in time_str:
-                            wait_time = int(float(time_str.replace("s", "").strip())) + 5
-                    except:
-                        wait_time = 60
-                
-                print(f"⏳ Rate limit hit. Waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}...")
+                try:
+                    err_data = json.loads(error_body)
+                    msg = err_data.get("error", {}).get("message", "")
+                    if "retry after" in msg.lower():
+                        seconds = int("".join(filter(str.isdigit, msg.split("retry after")[-1])))
+                        wait_time = seconds + 5
+                except Exception:
+                    pass
+
+                print(f"⏳ Rate limit hit. Waiting {wait_time}s before retry {attempt + 1}/{max_retries}...")
                 time.sleep(wait_time)
                 continue
-            
+
             else:
-                raise e
-    
+                raise Exception(f"Gemini API error {status}: {error_body}")
+
+        except Exception as e:
+            raise e
+
     raise Exception("Max retries exceeded")
 
 
