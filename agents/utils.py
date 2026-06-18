@@ -13,10 +13,10 @@ GEMINI_URL = (
     "gemini-2.5-flash:generateContent?key=" + (GEMINI_API_KEY or "")
 )
 
-def call_groq(prompt, max_tokens=2000, temperature=0.3, max_retries=5):
+def call_groq(prompt, max_tokens=8000, temperature=0.3, max_retries=5):
     """
-    Drop-in replacement for Groq — now calls Gemini 1.5 Flash.
-    Function name kept as call_groq so all 7 agents work without any changes.
+    Calls Gemini 2.5 Flash. Function name kept as call_groq
+    so all 7 agents work without changes.
     """
     payload = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
@@ -34,7 +34,7 @@ def call_groq(prompt, max_tokens=2000, temperature=0.3, max_retries=5):
                 headers={"Content-Type": "application/json"},
                 method="POST"
             )
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=60) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 return data["candidates"][0]["content"]["parts"][0]["text"].strip()
 
@@ -43,7 +43,6 @@ def call_groq(prompt, max_tokens=2000, temperature=0.3, max_retries=5):
             status = e.code
 
             if status == 429:
-                # Gemini rate limit — back off and retry
                 wait_time = 60
                 try:
                     err_data = json.loads(error_body)
@@ -61,8 +60,12 @@ def call_groq(prompt, max_tokens=2000, temperature=0.3, max_retries=5):
             else:
                 raise Exception(f"Gemini API error {status}: {error_body}")
 
-        except Exception as e:
-            raise e
+        except (urllib.error.URLError, TimeoutError) as e:
+            # Network error — retry with backoff
+            wait_time = 10 * (attempt + 1)
+            print(f"🌐 Network error: {e}. Retrying in {wait_time}s ({attempt + 1}/{max_retries})...")
+            time.sleep(wait_time)
+            continue
 
     raise Exception("Max retries exceeded")
 
