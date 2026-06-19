@@ -1,5 +1,6 @@
 import json
 import os
+import time
 import datetime
 from dotenv import load_dotenv
 
@@ -16,6 +17,9 @@ from security.agent import run_security_agent
 from devops.agent import run_devops_agent
 from monitoring.agent import run_monitoring_agent
 
+# Seconds to wait between agents — prevents RPM rate limit hits
+AGENT_PAUSE = 15
+
 def run_orchestrator(product_description: str) -> dict:
     print("🧠 Orchestrator starting...")
     print(f"📋 Product: {product_description}")
@@ -23,6 +27,7 @@ def run_orchestrator(product_description: str) -> dict:
 
     start_time = datetime.datetime.now()
     results = {}
+    code_output = {"files": []}  # safe default if coder fails
 
     # ─── STEP 1: PLANNER ───
     print("\n🗺️  STEP 1/7 — Planner Agent")
@@ -42,6 +47,9 @@ def run_orchestrator(product_description: str) -> dict:
     os.makedirs(project_folder, exist_ok=True)
     print(f"📁 Project folder: {project_folder}")
 
+    print(f"\n⏳ Pausing {AGENT_PAUSE}s before next agent...")
+    time.sleep(AGENT_PAUSE)
+
     # ─── STEP 2: RESEARCHER ───
     print("\n🔍 STEP 2/7 — Research Agent")
     print("-" * 40)
@@ -54,6 +62,9 @@ def run_orchestrator(product_description: str) -> dict:
         results['researcher'] = {"status": "failed", "error": str(e)}
         research = {"recommended_libraries": [], "security_considerations": []}
 
+    print(f"\n⏳ Pausing {AGENT_PAUSE}s before next agent...")
+    time.sleep(AGENT_PAUSE)
+
     # ─── STEP 3: CODER ───
     print("\n💻 STEP 3/7 — Coding Agent")
     print("-" * 40)
@@ -65,6 +76,9 @@ def run_orchestrator(product_description: str) -> dict:
         print(f"❌ Coding Agent failed: {e}")
         results['coder'] = {"status": "failed", "error": str(e)}
 
+    print(f"\n⏳ Pausing {AGENT_PAUSE}s before next agent...")
+    time.sleep(AGENT_PAUSE)
+
     # ─── STEP 4: TESTER ───
     print("\n🧪 STEP 4/7 — Testing Agent")
     print("-" * 40)
@@ -72,13 +86,16 @@ def run_orchestrator(product_description: str) -> dict:
         code_files = [
             os.path.join(project_folder, f['filename'])
             for f in code_output.get('files', [])
-        ] if results['coder']['status'] == 'completed' else []
+        ]
         test_report = run_tester_agent(architecture, code_files, project_folder)
         results['tester'] = {"status": "completed", "output": test_report}
         print("✅ Testing Agent — DONE")
     except Exception as e:
         print(f"❌ Testing Agent failed: {e}")
         results['tester'] = {"status": "failed", "error": str(e)}
+
+    print(f"\n⏳ Pausing {AGENT_PAUSE}s before next agent...")
+    time.sleep(AGENT_PAUSE)
 
     # ─── STEP 5: SECURITY ───
     print("\n🔒 STEP 5/7 — Security Agent")
@@ -87,48 +104,57 @@ def run_orchestrator(product_description: str) -> dict:
         code_files = [
             os.path.join(project_folder, f['filename'])
             for f in code_output.get('files', [])
-        ] if results['coder']['status'] == 'completed' else []
-        security_report = run_security_agent(architecture, code_files)
-        
-        # Save report to project folder
+        ]
+        # ← now passing project_folder so read_code_files can find files
+        security_report = run_security_agent(architecture, code_files, project_folder)
+
         report_path = os.path.join(project_folder, 'security_report.json')
         with open(report_path, 'w') as f:
             json.dump(security_report, f, indent=2)
-        
+
         results['security'] = {"status": "completed", "output": security_report}
         print("✅ Security Agent — DONE")
     except Exception as e:
         print(f"❌ Security Agent failed: {e}")
         results['security'] = {"status": "failed", "error": str(e)}
 
+    print(f"\n⏳ Pausing {AGENT_PAUSE}s before next agent...")
+    time.sleep(AGENT_PAUSE)
+
     # ─── STEP 6: DEVOPS ───
     print("\n⚙️  STEP 6/7 — DevOps Agent")
     print("-" * 40)
     try:
         devops_report = run_devops_agent(architecture, project_folder)
-        
-        # Save report to project folder
+
         report_path = os.path.join(project_folder, 'devops_report.json')
         with open(report_path, 'w') as f:
             json.dump(devops_report, f, indent=2)
-        
+
         results['devops'] = {"status": "completed", "output": devops_report}
         print("✅ DevOps Agent — DONE")
     except Exception as e:
         print(f"❌ DevOps Agent failed: {e}")
         results['devops'] = {"status": "failed", "error": str(e)}
 
+    print(f"\n⏳ Pausing {AGENT_PAUSE}s before next agent...")
+    time.sleep(AGENT_PAUSE)
+
     # ─── STEP 7: MONITORING ───
     print("\n📊 STEP 7/7 — Monitoring Agent")
     print("-" * 40)
     try:
-        monitoring_report = run_monitoring_agent(architecture, project_folder)
-        
-        # Save report to project folder
+        monitoring_report = run_monitoring_agent(
+            architecture,
+            project_folder,
+            base_url="http://localhost:8000",
+            probe_live=False  # server isn't running during generation
+        )
+
         report_path = os.path.join(project_folder, 'monitoring_report.json')
         with open(report_path, 'w') as f:
             json.dump(monitoring_report, f, indent=2)
-        
+
         results['monitoring'] = {"status": "completed", "output": monitoring_report}
         print("✅ Monitoring Agent — DONE")
     except Exception as e:
@@ -155,7 +181,6 @@ def run_orchestrator(product_description: str) -> dict:
         "status": "completed" if failed == 0 else "completed_with_errors"
     }
 
-    # Save final report to project folder
     report_path = os.path.join(project_folder, 'final_report.json')
     with open(report_path, 'w') as f:
         json.dump(final_report, f, indent=2)
