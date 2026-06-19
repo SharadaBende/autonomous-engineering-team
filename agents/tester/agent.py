@@ -16,6 +16,35 @@ def read_project_files(files_list: list) -> dict:
                 files_content[filepath] = f.read()
     return files_content
 
+def read_project_files(files_list: list) -> dict:
+    files_content = {}
+    for filepath in files_list:
+        if os.path.exists(filepath):
+            with open(filepath, 'r', encoding='utf-8') as f:
+                files_content[filepath] = f.read()
+    return files_content
+
+
+def install_dependencies(project_folder: str, tech_stack: dict) -> None:
+    backend = tech_stack.get("backend", "").lower()
+    req_file = os.path.join(project_folder, "requirements.txt")
+    pkg_file = os.path.join(project_folder, "package.json")
+
+    if ("python" in backend or "fastapi" in backend or "flask" in backend or "django" in backend) and os.path.exists(req_file):
+        print(f"📦 Installing Python dependencies from {req_file}...")
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", req_file, "--quiet"],
+            cwd=project_folder,
+            timeout=120
+        )
+    elif os.path.exists(pkg_file):
+        print(f"📦 Installing npm dependencies in {project_folder}...")
+        npm = shutil.which("npm")
+        if npm:
+            subprocess.run([npm, "install"], cwd=project_folder, timeout=180)
+
+
+
 
 def detect_test_framework(tech_stack: dict, filename: str) -> str:
     backend = tech_stack.get("backend", "").lower()
@@ -89,10 +118,11 @@ def run_tests(test_filepath: str, framework: str, project_folder: str) -> dict:
 def run_tester_agent(architecture: dict, code_files: list, project_folder: str = "generated_projects") -> dict:
     print(f"🧪 Testing Agent starting...")
     print(f"📋 Writing tests for: {architecture['project_name']}")
-
     print("📖 Reading generated code files...")
     files_content = read_project_files(code_files)
 
+    install_dependencies(project_folder, architecture['tech_stack'])
+    
     files_prompt = f"""
     You are an expert software tester.
     Project: {architecture['project_name']}
