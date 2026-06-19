@@ -8,13 +8,6 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import call_groq, clean_json
 
-def read_project_files(files_list: list) -> dict:
-    files_content = {}
-    for filepath in files_list:
-        if os.path.exists(filepath):
-            with open(filepath, 'r', encoding='utf-8') as f:
-                files_content[filepath] = f.read()
-    return files_content
 
 def read_project_files(files_list: list) -> dict:
     files_content = {}
@@ -122,7 +115,7 @@ def run_tester_agent(architecture: dict, code_files: list, project_folder: str =
     files_content = read_project_files(code_files)
 
     install_dependencies(project_folder, architecture['tech_stack'])
-    
+
     files_prompt = f"""
     You are an expert software tester.
     Project: {architecture['project_name']}
