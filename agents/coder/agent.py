@@ -21,13 +21,15 @@ def run_coder_agent(architecture: dict, research: dict, project_folder: str = "g
     Database Tables: {json.dumps(architecture['database_tables'], indent=2)}
     
     List all files needed for this project.
-    Return ONLY a JSON array, no markdown, no extra text:
+   Return ONLY a JSON array, no markdown, no extra text:
     [
         {{"filename": "backend/server.js", "description": "main server file"}}
     ]
+    
+    IMPORTANT: Maximum 6 files only. Do not include .env files in the list.
     """
 
-    files_text = call_groq(files_prompt, max_tokens=2000, temperature=0.2)
+    files_text = call_groq(files_prompt, max_tokens=3000, temperature=0.2)
     files_text = clean_json(files_text)
 
     try:

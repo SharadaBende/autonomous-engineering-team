@@ -79,4 +79,19 @@ def clean_json(text):
         text = text[3:]
     if text.endswith("```"):
         text = text[:-3]
+    text = text.strip()
+
+    # Attempt to fix truncated JSON by closing open structures
+    if not text.endswith((']', '}')):
+        # Count open brackets to determine what needs closing
+        open_curly = text.count('{') - text.count('}')
+        open_square = text.count('[') - text.count(']')
+
+        # Truncate to last complete object (find last complete closing brace)
+        last_complete = max(text.rfind('},'), text.rfind('}]'))
+        if last_complete > 0:
+            text = text[:last_complete + 1]
+            # Close remaining open structures
+            text += ']' * open_square
+
     return text.strip()
