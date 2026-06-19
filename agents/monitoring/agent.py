@@ -11,21 +11,13 @@ from utils import call_groq, clean_json
 
 
 def extract_routes_from_code(project_folder: str) -> list:
-    """
-    Parse actual route decorators from generated code files.
-    Supports FastAPI/Flask (@app.get, @app.post, @router.get, etc.)
-    and Express (app.get, app.post, router.get, etc.)
-    Returns list of {"method": "GET", "path": "/api/foo"} dicts.
-    """
     routes = []
     seen = set()
 
-    # Patterns for Python (FastAPI / Flask)
     python_pattern = re.compile(
         r'@(?:app|router)\.(get|post|put|patch|delete|head)\s*\(\s*["\']([^"\']+)["\']',
         re.IGNORECASE
     )
-    # Patterns for Express JS
     express_pattern = re.compile(
         r'(?:app|router)\.(get|post|put|patch|delete)\s*\(\s*["\']([^"\']+)["\']',
         re.IGNORECASE
@@ -35,7 +27,6 @@ def extract_routes_from_code(project_folder: str) -> list:
         for fname in files:
             if not (fname.endswith(".py") or fname.endswith(".js") or fname.endswith(".ts")):
                 continue
-            # Skip test files and monitoring files themselves
             if "test" in fname.lower() or "monitoring" in root:
                 continue
 
@@ -59,10 +50,6 @@ def extract_routes_from_code(project_folder: str) -> list:
 
 
 def probe_endpoint(method: str, path: str, base_url: str, timeout: int = 5) -> dict:
-    """
-    Make a real HTTP request and return actual status + response time.
-    Uses only stdlib (urllib) — no requests dependency needed.
-    """
     url = base_url.rstrip("/") + path
     result = {
         "endpoint": path,
@@ -75,9 +62,10 @@ def probe_endpoint(method: str, path: str, base_url: str, timeout: int = 5) -> d
         "error": None
     }
 
+    start = time.monotonic()  # ← moved outside try so except blocks can always access it
+
     try:
         req = urllib.request.Request(url, method=method)
-        start = time.monotonic()
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             elapsed = (time.monotonic() - start) * 1000
             result["http_code"] = resp.status
@@ -88,7 +76,6 @@ def probe_endpoint(method: str, path: str, base_url: str, timeout: int = 5) -> d
         elapsed = (time.monotonic() - start) * 1000
         result["http_code"] = e.code
         result["response_time_ms"] = round(elapsed, 1)
-        # 4xx means the server is up and responding — not a monitoring failure
         result["status"] = "healthy" if e.code < 500 else "degraded"
         result["error"] = f"HTTP {e.code}: {e.reason}"
 
@@ -113,12 +100,12 @@ def run_monitoring_agent(
     print(f"📋 Setting up monitoring for: {architecture['project_name']}")
 
     monitoring_files = [
-        {"filename": "monitoring/health_check.py", "description": "Health check script"},
-        {"filename": "monitoring/metrics.py",       "description": "Metrics collection"},
-        {"filename": "monitoring/alerts.py",        "description": "Alert rules"},
-        {"filename": "monitoring/logger.py",        "description": "Structured logging"},
-        {"filename": "monitoring/dashboard.py",     "description": "Dashboard data"},
-        {"filename": "monitoring/prometheus.yml",   "description": "Prometheus config"},
+        {"filename": "monitoring/health_check.py",        "description": "Health check script"},
+        {"filename": "monitoring/metrics.py",             "description": "Metrics collection"},
+        {"filename": "monitoring/alerts.py",              "description": "Alert rules"},
+        {"filename": "monitoring/logger.py",              "description": "Structured logging"},
+        {"filename": "monitoring/dashboard.py",           "description": "Dashboard data"},
+        {"filename": "monitoring/prometheus.yml",         "description": "Prometheus config"},
         {"filename": "monitoring/grafana_dashboard.json", "description": "Grafana dashboard"}
     ]
 
@@ -127,7 +114,7 @@ def run_monitoring_agent(
     for file_info in monitoring_files:
         filename = file_info['filename']
         description = file_info['description']
-        print(f"✍️ Creating {filename}...")
+        print(f"✍️  Creating {filename}...")
 
         prompt = f"""
         You are an expert DevOps and monitoring engineer.
@@ -140,17 +127,18 @@ def run_monitoring_agent(
         Purpose: {description}
         
         Rules:
-        - Write complete working code or configuration
+        - Write complete, working code or configuration
         - Include proper error handling
         - Add helpful comments
         - Use environment variables for configuration
-        
-        Return ONLY the raw file content, no explanations, no markdown.
+        - Do NOT wrap in markdown code fences (no ```)
+        - Return ONLY the raw file content, nothing else
         """
 
         try:
-            file_content = call_groq(prompt, max_tokens=2000, temperature=0.2)
+            file_content = call_groq(prompt, max_tokens=4000, temperature=0.2)
 
+            # Strip markdown fences if Gemini adds them anyway
             if file_content.startswith("```"):
                 lines = file_content.split('\n')
                 lines = lines[1:]
@@ -168,10 +156,13 @@ def run_monitoring_agent(
             created_files.append({"filename": filename, "description": description})
 
         except Exception as e:
-            print(f"⚠️ Skipping {filename}: {e}")
+            print(f"⚠️  Skipping {filename}: {e}")
             continue
 
-    # ── NEW: derive routes from actual generated code ─────────────────────
+        # Pause between files to avoid rate limits
+        time.sleep(3)  # slightly longer for monitoring — grafana JSON is large
+
+    # ── Derive routes from actual generated code ──────────────────────────
     print("\n🔍 Scanning generated code for real routes...")
     real_routes = extract_routes_from_code(project_folder)
 
@@ -180,20 +171,18 @@ def run_monitoring_agent(
         for r in real_routes:
             print(f"    {r['method']} {r['path']}  ({r['source_file']})")
     else:
-        # Fall back to architecture dict if parser found nothing
         print("  ⚠️  No routes parsed from code — falling back to architecture spec")
         real_routes = [
             {"method": e["method"], "path": e["path"], "source_file": "architecture_spec"}
             for e in architecture.get("api_endpoints", [])
         ]
 
-    # ── NEW: actually probe each endpoint ────────────────────────────────
+    # ── Probe each endpoint ───────────────────────────────────────────────
     print(f"\n🏥 Probing endpoints at {base_url}...")
     health_results = []
 
     for route in real_routes:
         if not probe_live:
-            # Dry-run mode — skip network calls, mark as skipped
             health_results.append({
                 "endpoint": route["path"],
                 "method": route["method"],
@@ -215,8 +204,8 @@ def run_monitoring_agent(
         print(f"  {icon} {route['method']} {route['path']} — {result['status']} ({code}, {ms})")
 
     # ── Summary counts ────────────────────────────────────────────────────
-    healthy_count   = sum(1 for h in health_results if h["status"] == "healthy")
-    degraded_count  = sum(1 for h in health_results if h["status"] == "degraded")
+    healthy_count     = sum(1 for h in health_results if h["status"] == "healthy")
+    degraded_count    = sum(1 for h in health_results if h["status"] == "degraded")
     unreachable_count = sum(1 for h in health_results if h["status"] in ("unreachable", "error"))
 
     times = [h["response_time_ms"] for h in health_results if h.get("response_time_ms")]
@@ -238,9 +227,9 @@ def run_monitoring_agent(
         },
         "alerts_configured": [
             {"name": "High Response Time", "condition": "response_time > 1000ms", "severity": "warning"},
-            {"name": "Service Down",        "condition": "health_check fails 3 times", "severity": "critical"},
-            {"name": "High Error Rate",     "condition": "error_rate > 5%",        "severity": "high"},
-            {"name": "High CPU Usage",      "condition": "cpu_usage > 80%",         "severity": "warning"}
+            {"name": "Service Down",       "condition": "health_check fails 3 times", "severity": "critical"},
+            {"name": "High Error Rate",    "condition": "error_rate > 5%",         "severity": "high"},
+            {"name": "High CPU Usage",     "condition": "cpu_usage > 80%",          "severity": "warning"}
         ],
         "monitoring_stack": {
             "metrics": "Prometheus",
@@ -274,8 +263,6 @@ if __name__ == "__main__":
             {"method": "GET",  "path": "/api/tasks",  "description": "Get tasks"}
         ]
     }
-    # probe_live=False during generation (server isn't running yet)
-    # flip to True to test against a running server
     result = run_monitoring_agent(
         test_architecture,
         "generated_projects/TodoApp",
