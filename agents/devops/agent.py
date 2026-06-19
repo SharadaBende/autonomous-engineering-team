@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import call_groq, clean_json
 
@@ -25,7 +26,7 @@ def run_devops_agent(architecture: dict, project_folder: str = "generated_projec
     for file_info in devops_files:
         filename = file_info['filename']
         description = file_info['description']
-        print(f"✍️ Creating {filename}...")
+        print(f"✍️  Creating {filename}...")
 
         prompt = f"""
         You are an expert DevOps engineer.
@@ -37,17 +38,18 @@ def run_devops_agent(architecture: dict, project_folder: str = "generated_projec
         Purpose: {description}
         
         Rules:
-        - Write complete working configuration
+        - Write complete, working configuration
         - Follow DevOps best practices
         - Include helpful comments
         - Use environment variables for secrets
-        
-        Return ONLY the raw file content, no explanations, no markdown.
+        - Do NOT wrap in markdown code fences (no ```)
+        - Return ONLY the raw file content, nothing else
         """
 
         try:
-            file_content = call_groq(prompt, max_tokens=2000, temperature=0.2)
+            file_content = call_groq(prompt, max_tokens=4000, temperature=0.2)
 
+            # Strip markdown fences if Gemini adds them anyway
             if file_content.startswith("```"):
                 lines = file_content.split('\n')
                 lines = lines[1:]
@@ -65,8 +67,11 @@ def run_devops_agent(architecture: dict, project_folder: str = "generated_projec
             created_files.append({"filename": filename, "description": description})
 
         except Exception as e:
-            print(f"⚠️ Skipping {filename}: {e}")
+            print(f"⚠️  Skipping {filename}: {e}")
             continue
+
+        # Pause between files to avoid rate limits
+        time.sleep(2)
 
     devops_report = {
         "project": architecture['project_name'],
