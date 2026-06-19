@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
@@ -122,27 +123,34 @@ async def download_project(project_name: str):
         media_type="application/zip"
     )
 
-@app.get("/api/projects")
-async def list_projects():
-    """
-    Lists all generated projects
-    """
-    root_dir = os.path.dirname(os.path.dirname(__file__))
-    projects_path = os.path.join(root_dir, 'generated_projects')
 
-    if not os.path.exists(projects_path):
-        return {"projects": []}
 
-    projects = []
-    for item in os.listdir(projects_path):
-        item_path = os.path.join(projects_path, item)
-        if os.path.isdir(item_path):
-            # Count files
-            file_count = sum(len(files) for _, _, files in os.walk(item_path))
-            projects.append({
-                "name": item,
-                "files": file_count,
-                "path": item_path
-            })
+@app.get("/api/download/{project_name}")
+async def download_project(project_name: str):
+    base_dir = Path(os.path.dirname(os.path.dirname(__file__))) / 'generated_projects'
+    project_path = (base_dir / project_name).resolve()
 
-    return {"projects": projects}
+    if not str(project_path).startswith(str(base_dir.resolve())):
+        return {"error": "Invalid project name"}
+
+    if not project_path.exists():
+        return {"error": f"Project {project_name} not found"}
+
+    zip_path = base_dir / f"{project_name}.zip"
+
+    print(f"📦 Zipping project: {project_name}")
+
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(project_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, project_path)
+                zipf.write(file_path, arcname)
+
+    print(f"✅ ZIP created: {zip_path}")
+
+    return FileResponse(
+        path=str(zip_path),
+        filename=f"{project_name}.zip",
+        media_type="application/zip"
+    )
